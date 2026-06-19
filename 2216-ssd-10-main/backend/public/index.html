@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SITWallet API Tester</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>SITWallet API Tester</h1>
+      <p>Simple browser console for exercising the backend endpoints.</p>
+    </div>
+    <div class="status-strip">
+      <span id="csrfStatus">CSRF: none</span>
+      <span id="authStatus">Auth: signed out</span>
+      <span id="lastReferenceStatus">Last ref: none</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <label for="baseUrl">API base URL</label>
+      <input id="baseUrl" value="/api">
+      <button data-action="saveBaseUrl">Save Base URL</button>
+      <button data-action="getCsrf">Get CSRF Token</button>
+      <button data-action="health">Health Check</button>
+      <button data-action="clearState">Clear Tester State</button>
+
+      <nav>
+        <a href="#auth">Auth</a>
+        <a href="#dashboard">Dashboard</a>
+        <a href="#wallets">Wallets</a>
+        <a href="#market">Market</a>
+        <a href="#topup">Top-up</a>
+        <a href="#exchange">Exchange</a>
+        <a href="#transfer">Transfer</a>
+        <a href="#history">History</a>
+        <a href="#admin">Admin</a>
+      </nav>
+    </aside>
+
+    <section class="content">
+      <section id="auth" class="panel">
+        <h2>Auth and Registration</h2>
+        <div class="grid">
+          <form data-endpoint="/auth/register" data-method="POST" data-state-key="registrationId">
+            <h3>Start Registration</h3>
+            <label>Full name <input name="fullName" value="Jane Tan"></label>
+            <label>Email <input name="email" type="email" value="jane@example.com"></label>
+            <button>POST /auth/register</button>
+          </form>
+
+          <form data-endpoint="/auth/register-verify/setup" data-method="POST" data-state-key="registrationId">
+            <h3>Setup MFA QR</h3>
+            <label>Registration ID <input name="registrationId" data-fill="registrationId"></label>
+            <label>Phone number <input name="phoneNumber" value="+6591234567"></label>
+            <button>POST /auth/register-verify/setup</button>
+            <div id="qrPreview" class="qr-preview"></div>
+          </form>
+
+          <form data-endpoint="/auth/register-verify" data-method="POST" data-state-key="registrationId">
+            <h3>Verify Registration MFA</h3>
+            <label>Registration ID <input name="registrationId" data-fill="registrationId"></label>
+            <label>6-digit code <input name="code" inputmode="numeric" maxlength="6"></label>
+            <button>POST /auth/register-verify</button>
+          </form>
+
+          <form data-endpoint="/auth/register-password" data-method="POST">
+            <h3>Complete Registration</h3>
+            <label>Registration ID <input name="registrationId" data-fill="registrationId"></label>
+            <label>Password <input name="password" type="password" value="StrongPassword!123"></label>
+            <label>Confirm password <input name="confirmPassword" type="password" value="StrongPassword!123"></label>
+            <label>Primary currency <input name="primaryCurrency" value="SGD" maxlength="3"></label>
+            <label class="inline"><input name="termsAccepted" type="checkbox" checked> Terms accepted</label>
+            <button>POST /auth/register-password</button>
+          </form>
+
+          <form data-endpoint="/auth/login" data-method="POST" data-state-key="loginChallengeId">
+            <h3>Login</h3>
+            <label>Email <input name="email" type="email" value="jane@example.com"></label>
+            <label>Password <input name="password" type="password" value="StrongPassword!123"></label>
+            <button>POST /auth/login</button>
+          </form>
+
+          <form data-endpoint="/auth/login-verify" data-method="POST" data-state-key="accessToken">
+            <h3>Verify Login MFA</h3>
+            <label>Login challenge ID <input name="loginChallengeId" data-fill="loginChallengeId"></label>
+            <label>6-digit code <input name="code" inputmode="numeric" maxlength="6"></label>
+            <button>POST /auth/login-verify</button>
+          </form>
+
+          <div class="button-card">
+            <h3>Session</h3>
+            <button data-action="registerSuccess">GET /auth/register-success</button>
+            <button data-action="me">GET /auth/me</button>
+            <button data-action="refresh">POST /auth/refresh</button>
+            <button data-action="logout">POST /auth/logout</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard" class="panel">
+        <h2>Dashboard</h2>
+        <button data-action="dashboard">GET /dashboard</button>
+      </section>
+
+      <section id="wallets" class="panel">
+        <h2>Wallets</h2>
+        <div class="grid">
+          <div class="button-card">
+            <h3>List Wallets</h3>
+            <button data-action="wallets">GET /wallets</button>
+          </div>
+          <form data-endpoint="/wallets" data-method="POST">
+            <h3>Create Wallet</h3>
+            <label>Currency <input name="currency" value="USD" maxlength="3"></label>
+            <button>POST /wallets</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="market" class="panel">
+        <h2>Market Rates</h2>
+        <button data-action="market">GET /market</button>
+        <button data-action="rates">GET /market/rates</button>
+        <button data-action="currencies">GET /market/currencies</button>
+      </section>
+
+      <section id="topup" class="panel">
+        <h2>Add Funds</h2>
+        <div class="grid">
+          <form data-query-endpoint="/top-up/quote" data-method="GET">
+            <h3>Top-up Quote</h3>
+            <label>Currency <input name="currency" value="SGD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="100"></label>
+            <button>GET /top-up/quote</button>
+          </form>
+          <form data-endpoint="/top-up" data-method="POST" data-state-key="reference">
+            <h3>Confirm Top-up</h3>
+            <label>Currency <input name="currency" value="SGD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="100"></label>
+            <label>Description <input name="description" value="Browser test top-up"></label>
+            <button>POST /top-up</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="exchange" class="panel">
+        <h2>Exchange</h2>
+        <div class="grid">
+          <form data-query-endpoint="/exchange/quote" data-method="GET">
+            <h3>Exchange Quote</h3>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="25"></label>
+            <button>GET /exchange/quote</button>
+          </form>
+          <form data-endpoint="/exchange" data-method="POST" data-state-key="reference">
+            <h3>Confirm Exchange</h3>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="25"></label>
+            <button>POST /exchange</button>
+          </form>
+          <form data-path-endpoint="/history/{reference}" data-method="GET">
+            <h3>Exchange Success Lookup</h3>
+            <label>Reference <input name="reference" data-fill="reference"></label>
+            <button>GET /history/:reference</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="transfer" class="panel">
+        <h2>Send Money</h2>
+        <div class="grid">
+          <form data-query-endpoint="/transfer/quote" data-method="GET">
+            <h3>Transfer Quote</h3>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="10"></label>
+            <button>GET /transfer/quote</button>
+          </form>
+
+          <div class="button-card">
+            <h3>Recipients</h3>
+            <button data-action="recipients">GET /transfer/recipients</button>
+          </div>
+
+          <form data-endpoint="/transfer/recipient" data-method="POST" data-state-key="recipientId">
+            <h3>Add Recipient</h3>
+            <label>Recipient email <input name="recipientEmail" type="email" value="alex@example.com"></label>
+            <label>Nickname <input name="nickname" value="Alex"></label>
+            <button>POST /transfer/recipient</button>
+          </form>
+
+          <form data-endpoint="/transfer/review" data-method="POST">
+            <h3>Transfer Review</h3>
+            <label>Recipient ID <input name="recipientId" data-fill="recipientId"></label>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="10"></label>
+            <label>Description <input name="description" value="Browser test transfer"></label>
+            <button>POST /transfer/review</button>
+          </form>
+
+          <form data-endpoint="/transfer" data-method="POST" data-state-key="reference">
+            <h3>Confirm Transfer</h3>
+            <label>Recipient ID <input name="recipientId" data-fill="recipientId"></label>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Amount <input name="amount" value="10"></label>
+            <label>Description <input name="description" value="Browser test transfer"></label>
+            <label class="inline"><input name="confirm" type="checkbox" checked> Confirm</label>
+            <button>POST /transfer</button>
+          </form>
+
+          <form data-path-endpoint="/history/{reference}" data-method="GET">
+            <h3>Transfer Success Lookup</h3>
+            <label>Reference <input name="reference" data-fill="reference"></label>
+            <button>GET /history/:reference</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="history" class="panel">
+        <h2>History</h2>
+        <div class="grid">
+          <form data-query-endpoint="/history" data-method="GET">
+            <h3>Transaction History</h3>
+            <label>Page <input name="page" value="1"></label>
+            <label>Limit <input name="limit" value="25"></label>
+            <label>Type <select name="type">
+              <option value="">Any</option>
+              <option>TOP_UP</option>
+              <option>TRANSFER</option>
+              <option>EXCHANGE</option>
+            </select></label>
+            <label>Currency <input name="currency" value=""></label>
+            <button>GET /history</button>
+          </form>
+          <form data-path-endpoint="/history/{reference}" data-method="GET">
+            <h3>Transaction Detail</h3>
+            <label>Reference <input name="reference" data-fill="reference"></label>
+            <button>GET /history/:reference</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="admin" class="panel">
+        <h2>Admin</h2>
+        <div class="grid">
+          <div class="button-card">
+            <h3>Read Admin Data</h3>
+            <button data-action="settings">GET /admin/settings</button>
+            <button data-action="users">GET /admin/users</button>
+            <button data-action="auditLogs">GET /admin/audit-logs</button>
+          </div>
+
+          <form data-path-endpoint="/admin/settings/{settingKey}" data-method="PUT">
+            <h3>Update Setting</h3>
+            <label>Setting key <input name="settingKey" value="transfer_fee_percent"></label>
+            <label>Setting value <input name="settingValue" value="0.75"></label>
+            <button>PUT /admin/settings/:settingKey</button>
+          </form>
+
+          <form data-path-endpoint="/admin/rates/{fromCurrency}/{toCurrency}" data-method="PUT">
+            <h3>Update Exchange Rate</h3>
+            <label>From currency <input name="fromCurrency" value="SGD" maxlength="3"></label>
+            <label>To currency <input name="toCurrency" value="USD" maxlength="3"></label>
+            <label>Rate <input name="rate" value="0.7400000000"></label>
+            <label>High 24h <input name="high24h" value="0.7450000000"></label>
+            <label>Low 24h <input name="low24h" value="0.7360000000"></label>
+            <label>Change 24h % <input name="change24hPct" value="0.1800"></label>
+            <button>PUT /admin/rates/:fromCurrency/:toCurrency</button>
+          </form>
+
+          <form data-path-endpoint="/admin/users/{userId}/status" data-method="PATCH">
+            <h3>Update User Status or Role</h3>
+            <label>User ID <input name="userId"></label>
+            <label>Status <select name="status">
+              <option>active</option>
+              <option>suspended</option>
+              <option>closed</option>
+            </select></label>
+            <label>Role <select name="roleName">
+              <option value="">Do not change</option>
+              <option>customer</option>
+              <option>support</option>
+              <option>admin</option>
+            </select></label>
+            <button>PATCH /admin/users/:userId/status</button>
+          </form>
+        </div>
+      </section>
+    </section>
+
+    <aside class="output">
+      <div class="output-header">
+        <h2>Response</h2>
+        <button data-action="clearOutput">Clear</button>
+      </div>
+      <pre id="responseOutput">No requests yet.</pre>
+    </aside>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
