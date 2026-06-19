@@ -1,5 +1,9 @@
+# Workflow name displayed in GitHub Actions
 name: SITWallet CI
 
+# Trigger workflow when:
+# 1. Code is pushed to main branch
+# 2. Pull Request is opened/updated against main branch
 on:
   push:
     branches: ["main"]
@@ -7,59 +11,106 @@ on:
     branches: ["main"]
 
 jobs:
+
+  # =========================
+  # Backend Continuous Integration
+  # =========================
   backend-ci:
+
+    # Job name displayed in GitHub Actions UI
     name: Backend CI
+
+    # GitHub-hosted runner (Ubuntu Linux VM)
     runs-on: ubuntu-latest
 
+    # Set default working directory for all run commands
     defaults:
       run:
         working-directory: backend
 
     steps:
+
+      # Step 1: Download repository source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Install Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+
+          # Use Node.js version 20
           node-version: 20
+
+          # Enable npm dependency caching
           cache: npm
+
+          # Cache based on backend package-lock.json
           cache-dependency-path: backend/package-lock.json
 
+      # Step 3: Install backend dependencies
+      # npm ci ensures clean installation based on package-lock.json
       - name: Install backend dependencies
         run: npm ci
 
+      # Step 4: Check for high severity vulnerabilities
+      # Workflow fails if high severity issues are found
       - name: Run backend audit
         run: npm audit --audit-level=high
 
+      # Step 5: Verify Docker image can be built successfully
+      # No image is pushed yet; this is only a build validation
       - name: Build backend Docker image
         run: docker build -t sitwallet-backend ./
 
 
+  # =========================
+  # Frontend Continuous Integration
+  # =========================
   frontend-ci:
+
+    # Job name displayed in GitHub Actions UI
     name: Frontend CI
+
+    # GitHub-hosted Ubuntu runner
     runs-on: ubuntu-latest
 
+    # Set frontend as default working directory
     defaults:
       run:
         working-directory: frontend
 
     steps:
+
+      # Step 1: Download repository source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Install Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
+
+          # Use Node.js version 22
           node-version: 22
+
+          # Enable npm dependency caching
           cache: npm
+
+          # Cache based on frontend package-lock.json
           cache-dependency-path: frontend/package-lock.json
 
+      # Step 3: Install frontend dependencies
+      # Ensures consistent installation from lock file
       - name: Install frontend dependencies
         run: npm ci
 
+      # Step 4: Build frontend application
+      # Verifies React/Vue/Angular build succeeds
       - name: Build frontend
         run: npm run build
 
+      # Step 5: Verify frontend Docker image builds successfully
+      # Ensures Dockerfile is valid and application can be containerized
       - name: Build frontend Docker image
         run: docker build -t sitwallet-frontend ./
