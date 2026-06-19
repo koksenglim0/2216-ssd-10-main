@@ -62,3 +62,4 @@ If requests return `DATABASE_UNAVAILABLE`, check that MySQL is running, `.env` h
 - Helmet, strict JSON body size, CORS allow-listing, rate limiting
 - Stored procedures for wallet creation, top-up, transfer, exchange, dashboard, recipients, and audit logging
 - Immutable transaction ledger rows and audit log rows
+
