@@ -178,7 +178,7 @@ jobs:
             sudo docker compose -f docker-compose.staging.yaml pull
             sudo docker compose -f docker-compose.staging.yaml up -d
 
-            echo "Waiting for staging to start..."
+            echo "Waiting for staging services to start..."
             sleep 30
 
             echo "Initialise staging DB only if missing..."
@@ -195,6 +195,9 @@ jobs:
             sudo docker compose -f docker-compose.yaml pull
             sudo docker compose -f docker-compose.yaml up -d
 
+            echo "Waiting for production services to start..."
+            sleep 20
+
             echo "Initialise production DB only if missing..."
             if ! sudo docker exec sitwallet-mysql mysql -uroot -prootpassword sitwallet -e "SHOW TABLES LIKE 'users';" | grep -q users; then
               sudo docker exec -i sitwallet-mysql mysql -uroot -prootpassword < 001_schema_mysql57_all_procedures.sql
@@ -202,4 +205,11 @@ jobs:
               echo "Production DB already initialized."
             fi
 
+            echo "Running production health check..."
+            curl -f http://localhost
+
+            echo "Production healthy. Stopping staging environment..."
+            sudo docker compose -f docker-compose.staging.yaml down
+
+            echo "Deployment completed."
             sudo docker ps
