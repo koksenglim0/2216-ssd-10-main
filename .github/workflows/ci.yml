@@ -162,28 +162,44 @@ jobs:
       # Restart containers using Docker Compose
       ###################################################
 
-      - name: Deploy to EC2
+      - name: Deploy to EC2 with staging validation
         if: github.event_name == 'push'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: student10
           key: ${{ secrets.EC2_SSH_KEY }}
-
           script: |
-            # Navigate to deployment directory
             cd ~/cd_pipeline2
 
-            # Login to GitHub Container Registry
-            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io \
-            -u koksenglim0 \
-            --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u koksenglim0 --password-stdin
 
-            # Download latest Docker images
-            sudo docker compose pull
+            echo "Deploying staging environment..."
+            sudo docker compose -f docker-compose.staging.yaml pull
+            sudo docker compose -f docker-compose.staging.yaml up -d
 
-            # Recreate containers using latest images
-            sudo docker compose up -d
+            echo "Waiting for staging to start..."
+            sleep 30
 
-            # Display running containers
+            echo "Initialise staging DB only if missing..."
+            if ! sudo docker exec sitwallet-staging-mysql mysql -uroot -prootpassword sitwallet -e "SHOW TABLES LIKE 'users';" | grep -q users; then
+              sudo docker exec -i sitwallet-staging-mysql mysql -uroot -prootpassword < 001_schema_mysql57_all_procedures.sql
+            else
+              echo "Staging DB already initialized."
+            fi
+
+            echo "Running staging health check..."
+            curl -f http://localhost:8081
+
+            echo "Staging passed. Deploying production..."
+            sudo docker compose -f docker-compose.yaml pull
+            sudo docker compose -f docker-compose.yaml up -d
+
+            echo "Initialise production DB only if missing..."
+            if ! sudo docker exec sitwallet-mysql mysql -uroot -prootpassword sitwallet -e "SHOW TABLES LIKE 'users';" | grep -q users; then
+              sudo docker exec -i sitwallet-mysql mysql -uroot -prootpassword < 001_schema_mysql57_all_procedures.sql
+            else
+              echo "Production DB already initialized."
+            fi
+
             sudo docker ps
