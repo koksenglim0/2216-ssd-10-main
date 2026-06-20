@@ -172,7 +172,7 @@ jobs:
 
           script: |
             # Navigate to deployment directory
-            cd ~/cd_pipeline
+            cd ~/cd_pipeline2
 
             # Login to GitHub Container Registry
             echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io \
