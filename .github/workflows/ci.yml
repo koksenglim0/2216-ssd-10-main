@@ -1,32 +1,54 @@
 name: SITWallet CI/CD
 
-# Trigger workflow whenever code is pushed to main
-# or when a Pull Request is opened against main
+###################################################
+# WORKFLOW TRIGGERS
+###################################################
+# Run the workflow whenever:
+# 1. Code is pushed to the main branch
+# 2. A Pull Request is opened against main
+###################################################
+
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["main"]
 
-# Required for pushing Docker images to GitHub Container Registry (GHCR)
+###################################################
+# REQUIRED PERMISSIONS
+###################################################
+# packages: write
+# Allows GitHub Actions to push Docker images
+# into GitHub Container Registry (GHCR)
+###################################################
+
 permissions:
   contents: read
   packages: write
 
-# Global variables used throughout the workflow
+###################################################
+# GLOBAL VARIABLES
+###################################################
+# Define the image names once so they can be reused
+# throughout the workflow.
+###################################################
+
 env:
   REGISTRY: ghcr.io
 
-  # Backend image name
+  # Backend Docker image
   BACKEND_IMAGE: ghcr.io/koksenglim0/sitwallet-backend
 
-  # Frontend image name
+  # Frontend Docker image
   FRONTEND_IMAGE: ghcr.io/koksenglim0/sitwallet-frontend
+
+###################################################
+# JOB: BUILD, TEST, PUSH AND DEPLOY
+###################################################
 
 jobs:
   build-and-push:
 
-    # Name displayed in GitHub Actions UI
     name: Build and Push Docker Images
 
     # GitHub-hosted Ubuntu runner
@@ -34,15 +56,21 @@ jobs:
 
     steps:
 
-      # Step 1: Download repository source code
+      ###################################################
+      # STEP 1 - CHECKOUT SOURCE CODE
+      ###################################################
+      # Downloads the latest source code from GitHub
+      # onto the GitHub Actions runner.
+      ###################################################
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       ###################################################
-      # BACKEND CI
+      # BACKEND CONTINUOUS INTEGRATION (CI)
       ###################################################
 
-      # Install Node.js for backend
+      # Install Node.js for backend application
       - name: Setup Node.js for backend
         uses: actions/setup-node@v4
         with:
@@ -55,17 +83,18 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # Check backend dependencies for vulnerabilities
-      # Fail pipeline if High/Critical vulnerabilities are found
+      # Security dependency scan
+      # Pipeline fails if High severity vulnerabilities
+      # are detected.
       - name: Run backend audit
         working-directory: backend
         run: npm audit --audit-level=high
 
       ###################################################
-      # FRONTEND CI
+      # FRONTEND CONTINUOUS INTEGRATION (CI)
       ###################################################
 
-      # Install Node.js for frontend
+      # Install Node.js for frontend application
       - name: Setup Node.js for frontend
         uses: actions/setup-node@v4
         with:
@@ -78,44 +107,83 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # Build frontend production files
-      # Ensures React/Vite application compiles successfully
+      # Build production-ready React/Vite application
+      # Ensures source code compiles successfully
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
       ###################################################
-      # CONTAINER REGISTRY AUTHENTICATION
+      # LOGIN TO GITHUB CONTAINER REGISTRY (GHCR)
+      ###################################################
+      # Authenticate GitHub Actions so Docker images
+      # can be pushed into GitHub Container Registry.
       ###################################################
 
-      # Login to GitHub Container Registry (GHCR)
-      # Uses GitHub's built-in token
       - name: Login to GitHub Container Registry
         if: github.event_name == 'push'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+          -u ${{ github.actor }} \
+          --password-stdin
 
       ###################################################
-      # DOCKER IMAGE BUILD
+      # BUILD DOCKER IMAGES
+      ###################################################
+      # Build backend and frontend Docker images.
       ###################################################
 
-      # Build backend Docker image
       - name: Build backend Docker image
         run: docker build -t $BACKEND_IMAGE:latest ./backend
 
-      # Build frontend Docker image
       - name: Build frontend Docker image
         run: docker build -t $FRONTEND_IMAGE:latest ./frontend
 
       ###################################################
       # PUSH IMAGES TO CONTAINER REGISTRY
       ###################################################
+      # Store Docker images in GitHub Container Registry
+      # so deployment servers can download them later.
+      ###################################################
 
-      # Push backend image to GHCR
       - name: Push backend Docker image
         if: github.event_name == 'push'
         run: docker push $BACKEND_IMAGE:latest
 
-      # Push frontend image to GHCR
       - name: Push frontend Docker image
         if: github.event_name == 'push'
         run: docker push $FRONTEND_IMAGE:latest
+
+      ###################################################
+      # CONTINUOUS DEPLOYMENT (CD)
+      ###################################################
+      # SSH into EC2
+      # Pull latest images from GHCR
+      # Restart containers using Docker Compose
+      ###################################################
+
+      - name: Deploy to EC2
+        if: github.event_name == 'push'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: student10
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+            # Navigate to deployment directory
+            cd ~/cd_pipeline
+
+            # Login to GitHub Container Registry
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io \
+            -u koksenglim0 \
+            --password-stdin
+
+            # Download latest Docker images
+            sudo docker compose pull
+
+            # Recreate containers using latest images
+            sudo docker compose up -d
+
+            # Display running containers
+            sudo docker ps
